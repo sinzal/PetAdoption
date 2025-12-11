@@ -1,24 +1,15 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PetController;
 
+// Public routes
 Route::get('/', function () {
     return view('home');
 })->name('home');
 
 Route::get('/adoption', function () {
-    // Sample pets data - in a real app this would come from a database
-    $pets = [
-        ['id' => 1, 'name' => 'Buddy', 'type' => 'dog', 'breed' => 'Golden Retriever', 'age' => '2 years', 'price' => 150, 'image' => 'dog1.jpg', 'description' => 'Friendly and loves to play fetch'],
-        ['id' => 2, 'name' => 'Whiskers', 'type' => 'cat', 'breed' => 'Siamese', 'age' => '1 year', 'price' => 100, 'image' => 'cat1.jpg', 'description' => 'Loves cuddles and nap time'],
-        ['id' => 3, 'name' => 'Polly', 'type' => 'parrot', 'breed' => 'African Grey', 'age' => '3 years', 'price' => 300, 'image' => 'parrot1.jpg', 'description' => 'Very talkative and intelligent'],
-        ['id' => 4, 'name' => 'Thumper', 'type' => 'rabbit', 'breed' => 'Holland Lop', 'age' => '6 months', 'price' => 75, 'image' => 'rabbit1.jpg', 'description' => 'Loves carrots and hopping around'],
-        ['id' => 5, 'name' => 'Squeaky', 'type' => 'mouse', 'breed' => 'Fancy Mouse', 'age' => '4 months', 'price' => 20, 'image' => 'mouse1.jpg', 'description' => 'Tiny and curious explorer'],
-        ['id' => 6, 'name' => 'Azure', 'type' => 'peacock', 'breed' => 'Indian Peafowl', 'age' => '2 years', 'price' => 500, 'image' => 'peacock1.jpg', 'description' => 'Magnificent feathers and proud'],
-        ['id' => 7, 'name' => 'Max', 'type' => 'dog', 'breed' => 'Beagle', 'age' => '3 years', 'price' => 120, 'image' => 'dog2.jpg', 'description' => 'Great sense of smell and friendly'],
-        ['id' => 8, 'name' => 'Luna', 'type' => 'cat', 'breed' => 'Maine Coon', 'age' => '2 years', 'price' => 150, 'image' => 'cat2.jpg', 'description' => 'Fluffy and gentle giant'],
-    ];
-    
+    $pets = App\Models\Pet::where('is_available', true)->get();
     return view('adoption', compact('pets'));
 })->name('adoption');
 
@@ -38,6 +29,48 @@ Route::get('/thankyou', function () {
     return view('thankyou');
 })->name('thankyou');
 
-Route::get('/productdetail1', function () {
-    return view('productdetail1');
+// Change this route
+Route::get('/productdetail1/{id?}', function ($id = null) {
+    if ($id) {
+        // If ID is provided, get that specific pet
+        $pet = App\Models\Pet::find($id);
+        return view('productdetail1', compact('pet'));
+    } else {
+        // If no ID, get the first pet (for backward compatibility)
+        $pet = App\Models\Pet::first();
+        return view('productdetail1', compact('pet'));
+    }
 })->name('productdetail1');
+// Admin routes for Pet CRUD
+Route::resource('pets', PetController::class);
+
+use App\Http\Controllers\AdoptionController;
+
+Route::post('/adoption/submit', [AdoptionController::class, 'submit'])->name('adoption.submit');
+
+
+
+// Admin dashboard
+Route::get('/admin', function () {
+    $pets = App\Models\Pet::all();
+    return view('admin.dashboard', compact('pets'));
+})->name('admin.dashboard');
+
+Route::get('/admin/login', function () {
+    return view('admin.login');
+})->name('admin.login');
+
+Route::post('/admin/login', function (Request $request) {
+    $password = $request->input('password');
+    if ($password === env('ADMIN_PASSWORD', 'admin123')) {
+        session(['admin_logged_in' => true]);
+        return redirect()->route('admin.dashboard');
+    }
+
+    return back()->withErrors(['password' => 'Invalid password']);
+})->name('admin.login.submit');
+
+Route::get('/admin/logout', function () {
+    session()->forget('admin_logged_in');
+    return redirect()->route('admin.login');
+})->name('admin.logout');

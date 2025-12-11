@@ -112,11 +112,9 @@
                 </div>
             </div>
             
-            
-        
-<button type="button" class="btn btn-primary" onclick="window.location.href='{{ url('/thankyou') }}'">
-    Submit Adoption Application
-</button>
+            <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url('/thankyou') }}'">
+                Submit Adoption Application
+            </button>
         </form>
     </div>
     
@@ -146,138 +144,7 @@
     </div>
 </div>
 
-<style>
-    .checkout-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    
-    .checkout-header h1 {
-        color: var(--primary);
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .checkout-container {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 3rem;
-    }
-    
-    .form-section {
-        margin-bottom: 2.5rem;
-        padding-bottom: 2rem;
-        border-bottom: 1px solid #e0e0e0;
-    }
-    
-    .form-section h2 {
-        color: var(--primary);
-        margin-bottom: 1.5rem;
-        font-size: 1.5rem;
-    }
-    
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-    }
-    
-    .form-row .form-group:last-child {
-        grid-column: 1 / -1;
-    }
-    
-    .agreement-text {
-        background-color: #f9f9f9;
-        padding: 1.5rem;
-        border-radius: 10px;
-        margin-bottom: 1.5rem;
-    }
-    
-    .agreement-text ul {
-        margin-left: 1.5rem;
-        margin-top: 1rem;
-    }
-    
-    .agreement-text li {
-        margin-bottom: 0.5rem;
-    }
-    
-    .checkbox-group {
-        display: flex;
-        align-items: flex-start;
-    }
-    
-    .checkbox-group input {
-        width: auto;
-        margin-right: 0.5rem;
-        margin-top: 0.3rem;
-    }
-    
-    .order-summary .card-body {
-        padding: 1.5rem;
-    }
-    
-    .checkout-item {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .checkout-item:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-        padding-bottom: 0;
-    }
-    
-    .item-name {
-        font-weight: bold;
-    }
-    
-    .item-details {
-        color: #666;
-        font-size: 0.9rem;
-    }
-    
-    .item-price {
-        text-align: right;
-    }
-    
-    .item-quantity {
-        color: #666;
-        font-size: 0.9rem;
-    }
-    
-    .summary-line {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-    }
-    
-    .summary-line.total {
-        font-size: 1.3rem;
-        font-weight: bold;
-        color: var(--primary);
-    }
-    
-    hr {
-        margin: 1rem 0;
-        border: none;
-        border-top: 1px solid #e0e0e0;
-    }
-    
-    @media (max-width: 768px) {
-        .checkout-container {
-            grid-template-columns: 1fr;
-        }
-        
-        .form-row {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-
+@section('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const cart = JSON.parse(localStorage.getItem('petCart')) || [];
@@ -332,4 +199,5 @@
         renderCheckoutItems();
     });
 </script>
+@endsection
 @endsection
