@@ -6,7 +6,6 @@
     <p>All our pets are looking for loving forever homes</p>
 </div>
 
-<!-- Search Bar Section -->
 <div class="search-section">
     <div class="form-group">
         <label for="pet-search">Search by Name or Breed:</label>
@@ -34,50 +33,30 @@
 
 <div class="pets-grid" id="pets-container">
     @foreach($pets as $pet)
-    <div class="pet-card card" data-type="{{ $pet->type }}" data-name="{{ strtolower($pet->name) }}" data-breed="{{ strtolower($pet->breed) }}">
+    <div class="pet-card card">
         <div class="pet-image">
-            <div class="pet-type-badge {{ $pet->type }}">{{ ucfirst($pet->type) }}</div>
             @if($pet->image_url)
-                <img src="{{ $pet->image_url }}" 
-                     alt="{{ $pet->name }} the {{ $pet->breed }}" 
-                     class="pet-img {{ $pet->type == 'cat' || $pet->type == 'peacock' ? $pet->type . '-img' : '' }}"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                     loading="lazy">
-                <!-- Fallback placeholder (hidden by default) -->
-                <div class="pet-placeholder" style="display: none;">
-                    {{ $pet->type == 'dog' ? '🐶' : 
-                       ($pet->type == 'cat' ? '🐱' : 
-                       ($pet->type == 'parrot' ? '🐦' : 
-                       ($pet->type == 'rabbit' ? '🐰' : 
-                       ($pet->type == 'mouse' ? '🐭' : 
-                       ($pet->type == 'peacock' ? '🦚' : '🐾'))))) }}
-                </div>
+                <img src="{{ $pet->image_url }}" class="pet-img" alt="{{ $pet->name }}">
             @else
-                <!-- No image URL - show placeholder directly -->
-                <div class="pet-placeholder">
-                    {{ $pet->type == 'dog' ? '🐶' : 
-                       ($pet->type == 'cat' ? '🐱' : 
-                       ($pet->type == 'parrot' ? '🐦' : 
-                       ($pet->type == 'rabbit' ? '🐰' : 
-                       ($pet->type == 'mouse' ? '🐭' : 
-                       ($pet->type == 'peacock' ? '🦚' : '🐾'))))) }}
-                </div>
+                <div class="pet-placeholder">🐾</div>
             @endif
         </div>
+
         <div class="card-body">
             <h3>{{ $pet->name }}</h3>
-            <p class="pet-breed">{{ $pet->breed }}</p>
-            <p class="pet-age">{{ $pet->age }} old</p>
-            <p class="pet-description">{{ $pet->description }}</p>
+            <p>{{ $pet->breed }}</p>
+            <p>{{ $pet->age }} old</p>
+            <p>{{ $pet->description }}</p>
             <div class="pet-price">${{ $pet->price }}</div>
-            <button class="btn btn-primary add-to-cart" 
-                    data-pet-id="{{ $pet->id }}" 
-                    data-pet-name="{{ $pet->name }}" 
-                    data-pet-price="{{ $pet->price }}"
-                    data-pet-type="{{ $pet->type }}">
+
+            <button class="btn btn-primary add-to-cart"
+                data-pet-id="{{ $pet->id }}"
+                data-pet-name="{{ $pet->name }}"
+                data-pet-price="{{ $pet->price }}"
+                data-pet-type="{{ $pet->type }}">
                 Add to Adoption Cart
             </button>
-            <br>
+
             <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url('/productdetail1/' . $pet->id) }}'">
                 View The Pet
             </button>
@@ -86,363 +65,232 @@
     @endforeach
 </div>
 
+@endsection
+
+
 @section('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Adoption page loaded successfully');
-    
-    // Simple image load logging
-    document.querySelectorAll('.pet-img').forEach(img => {
-        img.addEventListener('load', function() {
-            console.log('✓ Image loaded:', this.src);
-        });
-        img.addEventListener('error', function() {
-            console.log('✗ Image failed:', this.src);
-        });
-    });
+document.addEventListener('DOMContentLoaded', function () {
 
-    // Search Bar Functionality
     const searchInput = document.getElementById('pet-search');
-    const searchResults = document.getElementById('search-results');
+    const filterSelect = document.getElementById('pet-filter');
     const petsContainer = document.getElementById('pets-container');
-    let allPets = Array.from(document.querySelectorAll('.pet-card'));
-    
-    // Cache all pets data for quick searching
-    const petsData = allPets.map(pet => ({
-        element: pet,
-        name: pet.getAttribute('data-name'),
-        breed: pet.getAttribute('data-breed'),
-        type: pet.getAttribute('data-type')
-    }));
+    const searchResults = document.getElementById('search-results');
 
-    // Debounce function to limit API calls
-    function debounce(func, wait) {
+    function debounce(func, delay) {
         let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
+        return function (...args) {
             clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
+            timeout = setTimeout(() => func.apply(this, args), delay);
         };
     }
 
-    // Local search function
-    function performLocalSearch(query) {
-        if (!query.trim()) {
-            searchResults.style.display = 'none';
-            return [];
-        }
-        
-        const searchTerm = query.toLowerCase().trim();
-        return petsData.filter(pet => 
-            pet.name.includes(searchTerm) || 
-            pet.breed.includes(searchTerm)
-        );
+    // 🔥 AJAX Search Function
+    function fetchPets() {
+        let name = searchInput.value.trim();
+        let type = filterSelect.value;
+
+        fetch(`{{ route('pets.search') }}?name=${name}&type=${type}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    petsContainer.innerHTML = data.html;
+
+                    // Remove dropdown if empty
+                    if (!name) searchResults.style.display = 'none';
+
+                    // Fill dropdown (top 5 suggestions)
+                    fetchDropdown(name, type);
+                }
+            });
     }
 
-    // Display search results in dropdown
-    function displaySearchResults(results) {
-        searchResults.innerHTML = '';
-        
-        if (results.length === 0) {
+    // 🔥 AJAX dropdown results (top 5)
+    function fetchDropdown(name, type) {
+        if (!name) {
+            searchResults.innerHTML = '';
             searchResults.style.display = 'none';
             return;
         }
-        
-        results.slice(0, 5).forEach(result => {
-            const petElement = result.element;
-            const name = petElement.querySelector('h3').textContent;
-            const breed = petElement.querySelector('.pet-breed').textContent;
-            const type = petElement.getAttribute('data-type');
-            
-            const resultItem = document.createElement('div');
-            resultItem.className = 'search-result-item';
-            resultItem.innerHTML = `
-                <div class="search-result-icon">
-                    ${type === 'dog' ? '🐶' : 
-                      type === 'cat' ? '🐱' : 
-                      type === 'parrot' ? '🐦' : 
-                      type === 'rabbit' ? '🐰' : 
-                      type === 'mouse' ? '🐭' : 
-                      type === 'peacock' ? '🦚' : '🐾'}
-                </div>
-                <div class="search-result-info">
-                    <strong>${name}</strong>
-                    <small>${breed}</small>
-                </div>
-            `;
-            
-            resultItem.addEventListener('click', function() {
-                const petId = petElement.querySelector('.add-to-cart').getAttribute('data-pet-id');
-                window.location.href = `/productdetail1/${petId}`;
+
+        fetch(`{{ route('pets.search') }}?name=${name}&type=${type}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    let parser = new DOMParser();
+                    let htmlDoc = parser.parseFromString(data.html, "text/html");
+                    let petCards = htmlDoc.querySelectorAll(".pet-card");
+
+                    searchResults.innerHTML = "";
+                    petCards.forEach((card, index) => {
+                        if (index >= 5) return;
+
+                        let petName = card.querySelector("h3").innerText;
+                        let petBreed = card.querySelector("p").innerText;
+                        let petId = card.querySelector(".add-to-cart").dataset.petId;
+
+                        let item = document.createElement("div");
+                        item.classList.add("search-result-item");
+                        item.innerHTML = `
+                            <strong>${petName}</strong><br>
+                            <small>${petBreed}</small>
+                        `;
+                        item.onclick = () => window.location.href = `/productdetail1/${petId}`;
+
+                        searchResults.appendChild(item);
+                    });
+
+                    searchResults.style.display = petCards.length ? "block" : "none";
+                }
             });
-            
-            searchResults.appendChild(resultItem);
-        });
-        
-        searchResults.style.display = 'block';
     }
 
-    // Filter pets grid based on search
-    function filterPetsGrid(searchTerm) {
-        const filterSelect = document.getElementById('pet-filter');
-        const selectedType = filterSelect ? filterSelect.value : 'all';
-        
-        allPets.forEach(pet => {
-            const petName = pet.getAttribute('data-name');
-            const petBreed = pet.getAttribute('data-breed');
-            const petType = pet.getAttribute('data-type');
-            
-            const matchesSearch = !searchTerm || 
-                                 petName.includes(searchTerm) || 
-                                 petBreed.includes(searchTerm);
-            
-            const matchesType = selectedType === 'all' || petType === selectedType;
-            
-            pet.style.display = (matchesSearch && matchesType) ? 'block' : 'none';
-        });
-    }
+    // Events
+    searchInput.addEventListener("input", debounce(fetchPets, 300));
+    filterSelect.addEventListener("change", fetchPets);
 
-    // Event listener for search input with debouncing
-    if (searchInput) {
-        searchInput.addEventListener('input', debounce(function(e) {
-            const query = e.target.value.toLowerCase().trim();
-            
-            // Clear search results if empty
-            if (!query) {
-                searchResults.style.display = 'none';
-                filterPetsGrid('');
-                return;
-            }
-            
-            // Perform local search
-            const results = performLocalSearch(query);
-            displaySearchResults(results);
-            
-            // Filter the main grid
-            filterPetsGrid(query);
-        }, 300));
-    }
-
-    // Close search results when clicking outside
-    document.addEventListener('click', function(e) {
+    // Hide dropdown when clicking outside
+    document.addEventListener("click", (e) => {
         if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-            searchResults.style.display = 'none';
+            searchResults.style.display = "none";
         }
     });
 
-    // Filter functionality - updated to work with search
-    const filterSelect = document.getElementById('pet-filter');
-    if (filterSelect) {
-        filterSelect.addEventListener('change', function() {
-            const selectedType = this.value;
-            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-            
-            allPets.forEach(pet => {
-                const petName = pet.getAttribute('data-name');
-                const petBreed = pet.getAttribute('data-breed');
-                const petType = pet.getAttribute('data-type');
-                
-                const matchesSearch = !searchTerm || 
-                                     petName.includes(searchTerm) || 
-                                     petBreed.includes(searchTerm);
-                
-                const matchesType = selectedType === 'all' || petType === selectedType;
-                
-                pet.style.display = (matchesSearch && matchesType) ? 'block' : 'none';
-            });
-        });
-    }
-
-    // Add to cart functionality
-    document.querySelectorAll('.add-to-cart').forEach(button => {
-        button.addEventListener('click', function() {
-            const petId = this.getAttribute('data-pet-id');
-            const petName = this.getAttribute('data-pet-name');
-            const petPrice = parseFloat(this.getAttribute('data-pet-price'));
-            const petType = this.getAttribute('data-pet-type');
-            
-            let cart = JSON.parse(localStorage.getItem('petCart')) || [];
-            
-            // Check if pet is already in cart
-            const existingItem = cart.find(item => item.id === petId);
-            
-            if (existingItem) {
-                existingItem.quantity += 1;
-            } else {
-                cart.push({
-                    id: petId,
-                    name: petName,
-                    price: petPrice,
-                    type: petType,
-                    quantity: 1
-                });
-            }
-            
-            // Save to localStorage
-            localStorage.setItem('petCart', JSON.stringify(cart));
-            
-            // Update cart count
-            updateCartCount();
-            
-            // Show confirmation
-            showAddToCartConfirmation(petName);
-        });
-    });
-    
-    // Update cart count in header
-    function updateCartCount() {
-        const cart = JSON.parse(localStorage.getItem('petCart')) || [];
-        const cartCount = document.querySelector('.cart-count');
-        if (cartCount) {
-            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
-            cartCount.textContent = totalItems;
-        }
-    }
-    
-    // Show confirmation when pet is added to cart
-    function showAddToCartConfirmation(petName) {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            background: var(--primary);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 1000;
-            transform: translateX(150%);
-            transition: transform 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        `;
-        notification.innerHTML = `
-            <span style="font-size: 1.5rem;">🐾</span>
-            <div>
-                <strong>${petName}</strong> added to your adoption cart!
-            </div>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        // Animate in
-        setTimeout(() => {
-            notification.style.transform = 'translateX(0)';
-        }, 10);
-        
-        // Animate out after 3 seconds
-        setTimeout(() => {
-            notification.style.transform = 'translateX(150%)';
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
-        }, 3000);
-    }
-
-    // Initialize cart count on page load
-    updateCartCount();
 });
 </script>
 
 <style>
+/* Existing Search Styles */
 .search-section {
-    margin: 2rem 0;
+    margin: 2rem auto;
     max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 .search-wrapper {
     position: relative;
-    width: 100%;
 }
 
 #pet-search {
     width: 100%;
     padding: 12px 20px;
-    border: 2px solid #e0e0e0;
     border-radius: 30px;
+    border: 2px solid #ddd;
     font-size: 16px;
-    transition: all 0.3s ease;
-    box-sizing: border-box;
-}
-
-#pet-search:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 .search-results-dropdown {
     display: none;
     position: absolute;
-    top: 100%;
+    top: 105%;
     left: 0;
     right: 0;
     background: white;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #ddd;
     border-radius: 10px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-    max-height: 300px;
+    max-height: 250px;
     overflow-y: auto;
     z-index: 1000;
-    margin-top: 5px;
 }
 
 .search-result-item {
-    padding: 12px 20px;
+    padding: 12px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: background-color 0.2s ease;
     border-bottom: 1px solid #f0f0f0;
 }
 
-.search-result-item:last-child {
-    border-bottom: none;
-}
-
 .search-result-item:hover {
-    background-color: #f8f9fa;
+    background: #f5f5f5;
 }
 
-.search-result-icon {
-    font-size: 1.5rem;
-}
+/* --- PET CARD STYLING (UPDATED FOR ALIGNMENT AND LIGHTER PINK) --- */
 
-.search-result-info {
+.pets-grid {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 30px; /* Space between cards */
+    justify-content: center; /* Center cards horizontally */
+    padding: 20px;
 }
 
-.search-result-info strong {
-    font-size: 16px;
+.pet-card {
+    flex: 0 0 calc(33.333% - 20px); /* Approx 3 cards per row with gap */
+    max-width: 300px; /* Set a max width for better control */
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    display: flex; /* Make card a flex container */
+    flex-direction: column; /* Stack image and body */
+}
+
+.pet-image {
+    width: 100%;
+    height: 200px; /* Fixed height for image container */
+    overflow: hidden;
+}
+
+.pet-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures image covers the area without distortion */
+}
+
+/* CRITICAL: Flexbox for Card Body to push buttons to the bottom */
+.card-body {
+    padding: 15px;
+    display: flex; /* Make card-body a flex container */
+    flex-direction: column; /* Stack items vertically */
+    flex-grow: 1; /* Allow card-body to take up available vertical space */
+    min-height: 200px; /* Give the body a minimum height to standardize a bit */
+}
+
+.card-body h3 {
+    color: #ffb6c1; /* Lighter Pink for name */
+    margin-top: 0;
+}
+
+.card-body p {
+    margin-bottom: 5px;
+}
+
+.pet-price {
+    font-size: 1.5em;
     color: #333;
+    font-weight: bold;
+    margin: 10px 0 15px;
 }
 
-.search-result-info small {
-    font-size: 14px;
-    color: #666;
+/* This targets the dynamic content before the buttons and uses auto-margin 
+   to push the buttons to the bottom of the flex container (card-body) */
+.card-body > p:nth-last-child(3),
+.card-body .pet-price {
+    margin-bottom: auto; 
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-    .search-section {
-        margin: 1rem 0;
-        padding: 0 1rem;
-    }
-    
-    #pet-search {
-        padding: 10px 15px;
-        font-size: 14px;
-    }
+
+/* Styling the buttons */
+.card-body button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px; /* Space between buttons */
+    border-radius: 30px;
+    font-size: 16px;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+/* Lighter Pink button style */
+.btn-primary {
+    background-color: #ffb6c1; /* Light Pink */
+    border: 2px solid #ffb6c1;
+    color: white; /* Keep text white for contrast */
+    transition: background-color 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #ffc8d2; /* Slightly lighter pink on hover */
+    border-color: #ffc8d2;
 }
 </style>
-@endsection
 @endsection

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PetController;
+use Illuminate\Http\Request; // Added for the Admin login closure
 
 // Public routes
 Route::get('/', function () {
@@ -29,25 +30,15 @@ Route::get('/thankyou', function () {
     return view('thankyou');
 })->name('thankyou');
 
-// Change this route
-Route::get('/productdetail1/{id?}', function ($id = null) {
-    if ($id) {
-        // If ID is provided, get that specific pet
-        $pet = App\Models\Pet::find($id);
-        return view('productdetail1', compact('pet'));
-    } else {
-        // If no ID, get the first pet (for backward compatibility)
-        $pet = App\Models\Pet::first();
-        return view('productdetail1', compact('pet'));
-    }
-})->name('productdetail1');
+// UPDATED: Now points to the PetController method
+Route::get('/productdetail1/{id?}', [PetController::class, 'showProductDetail'])->name('productdetail1');
+
 // Admin routes for Pet CRUD
 Route::resource('pets', PetController::class);
 
 use App\Http\Controllers\AdoptionController;
 
 Route::post('/adoption/submit', [AdoptionController::class, 'submit'])->name('adoption.submit');
-
 
 
 // Admin dashboard
@@ -74,3 +65,5 @@ Route::get('/admin/logout', function () {
     session()->forget('admin_logged_in');
     return redirect()->route('admin.login');
 })->name('admin.logout');
+
+Route::get('/search-pets', [App\Http\Controllers\PetController::class, 'search'])->name('pets.search');
